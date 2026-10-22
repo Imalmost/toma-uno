@@ -66,6 +66,7 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--rec);margin:0}
 .rec-btn i{width:16px;height:16px;border-radius:50%;background:var(--rec-ink)}
 .rec-btn:disabled{opacity:.5;cursor:not-allowed}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+a.btn{color:var(--fg);text-decoration:none}
 .btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .btn.ghost{background:transparent}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -108,6 +109,8 @@ video.result{width:100%;max-width:100%;border-radius:12px;background:#000;aspect
 .item .acts .btn{padding:7px 12px;font-size:13px}
 .tag{font:600 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--sunk);color:var(--muted)}
 .tag.cloud{color:var(--ok)}
+.item .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.libmore{padding-top:12px}
 .empty{color:var(--muted);padding:8px 0}
 /* ajustes */
 dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--fg);padding:0;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px)}
@@ -249,7 +252,10 @@ code{font-family:var(--f-mono);font-size:.92em;background:var(--sunk);padding:1p
   <section class="panel">
     <div class="row" style="justify-content:space-between">
       <h2>Tus vídeos</h2>
-      <span class="note">Guardados en este navegador</span>
+      <div class="row" style="gap:10px">
+        <span class="note" id="libNote">En tu Google Drive</span>
+        <button class="btn" type="button" id="libRefresh" hidden>Actualizar</button>
+      </div>
     </div>
     <div class="lib" id="lib"></div>
   </section>
@@ -865,6 +871,7 @@ $("settingsForm").addEventListener("submit", async (ev) => {
     $("folderLinkRow").hidden = false; $("folderLink").href = cfg.folderLink;
     $("folderStatus").textContent = "Listo. Los vídeos se guardarán en «" + cfg.folderName + "».";
     toast("Google Drive conectado");
+    refreshLib();
   } catch (e) { $("folderStatus").textContent = driveErrorText(e); }
 });
 paintCloud();
@@ -1213,15 +1220,15 @@ async function ensureFolder() {
   cfg.folder = f.id; cfg.folderName = f.name; cfg.folderLink = f.webViewLink; saveCfg(); paintCloud();
   return f;
 }
-function uploadToDrive(name, blob, onProgress) {
+function uploadToDrive(name, blob, durMs, onProgress) {
   return new Promise(async (resolve, reject) => {
     try {
       await ensureFolder();
       const tok = await getToken();
-      const init = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink", {
+      const init = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink,createdTime,size", {
         method: "POST",
         headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": blob.type, "X-Upload-Content-Length": String(blob.size) },
-        body: JSON.stringify({ name, parents: [cfg.folder], mimeType: blob.type, description: "Grabado con Toma Uno" })
+        body: JSON.stringify({ name, parents: [cfg.folder], mimeType: blob.type, description: "Grabado con Toma Uno", appProperties: { tomaUno: "video", dur: String(Math.round(durMs || 0)) } })
       });
       if (!init.ok) { let msg = ""; try { msg = (await init.json()).error?.message || ""; } catch {} return reject({ status: init.status, msg }); }
       const session = init.headers.get("Location");
@@ -1247,7 +1254,7 @@ $("uploadBtn").onclick = async () => {
   $("uploadBtn").disabled = true; $("upErr").textContent = ""; $("upMeter").hidden = false; $("upBar").style.width = "0%";
   $("upLabel").textContent = "Conectando con Google Drive…";
   try {
-    const file = await uploadToDrive(title.replace(/[\\/:*?"<>|]+/g, "-") + "." + result.ext, result.blob, (p) => {
+    const file = await uploadToDrive(title.replace(/[\\/:*?"<>|]+/g, "-") + "." + result.ext, result.blob, result.durationMs, (p) => {
       $("upBar").style.width = (p * 100).toFixed(0) + "%"; $("upLabel").textContent = `Subiendo a Drive… ${(p * 100).toFixed(0)} % de ${fmtMB(result.blob.size)}`;
     });
     let note = "";
@@ -1258,7 +1265,7 @@ $("uploadBtn").onclick = async () => {
     const share = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
     result.uploaded = { share };
     $("upLabel").textContent = "Guardado en «" + (cfg.folderName || "tu carpeta") + "». Drive tarda unos minutos en preparar la reproducción." + note;
-    addToLibrary({ title, share, date: Date.now(), dur: result.durationMs, size: result.blob.size });
+    addToLibrary({ id: file.id, title, share, date: Date.parse(file.createdTime) || Date.now(), dur: result.durationMs, size: result.blob.size, pub: cfg.public !== false });
     showLink(share);
     await copyText(share, "Enlace copiado", $("linkOut"));
   } catch (e) {
@@ -1268,25 +1275,64 @@ $("uploadBtn").onclick = async () => {
 function showLink(share) { $("linkBox").hidden = false; $("linkOut").value = share; $("openLink").href = share; }
 $("copyBtn").onclick = () => copyText($("linkOut").value, "Enlace copiado", $("linkOut"));
 
-/* ---------- Biblioteca ---------- */
-let lib = store.get("toma.lib", []);
-function addToLibrary(item) { lib.unshift(item); lib = lib.slice(0, 200); store.set("toma.lib", lib); paintLib(); }
+/* ---------- Biblioteca: se lee de la carpeta de Drive ---------- */
+// La copia en el navegador solo sirve para enseñar la lista al abrir, antes de hablar con Drive.
+let lib = store.get("toma.lib2", []);
+let libState = "cache"; // cache | loading | fresh | error
+let libError = "";
+const saveLib = () => store.set("toma.lib2", lib.slice(0, 300));
+function addToLibrary(item) { lib = [item, ...lib.filter(x => x.id !== item.id)]; saveLib(); paintLib(); }
+async function refreshLib() {
+  if (!cloudReady() || libState === "loading") return;
+  libState = "loading"; libError = ""; paintLib();
+  try {
+    const folder = await ensureFolder();
+    const q = encodeURIComponent(`'${folder.id}' in parents and trashed=false and mimeType contains 'video/'`);
+    const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink,createdTime,size,shared,appProperties,videoMediaMetadata(durationMillis))");
+    let page = "", all = [], guard = 0;
+    do {
+      const r = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=createdTime desc&pageSize=200${page ? "&pageToken=" + page : ""}`);
+      all = all.concat(r.files || []); page = r.nextPageToken || "";
+    } while (page && ++guard < 10);
+    lib = all.map(f => ({
+      id: f.id, title: f.name.replace(/\.(webm|mp4)$/i, ""), share: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
+      date: Date.parse(f.createdTime) || 0, size: +f.size || 0, pub: !!f.shared,
+      dur: +(f.appProperties && f.appProperties.dur) || +(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0
+    }));
+    saveLib(); libState = "fresh";
+  } catch (e) { libState = "error"; libError = driveErrorText(e); }
+  paintLib();
+}
+$("libRefresh").onclick = refreshLib;
 function paintLib() {
   const el = $("lib"); el.innerHTML = "";
-  if (!lib.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "Aún no has guardado ningún vídeo en Drive. Cuando subas el primero, aparecerá aquí con su enlace."; el.append(p); return; }
-  lib.forEach((it, i) => {
+  $("libRefresh").hidden = !cloudReady();
+  $("libRefresh").disabled = libState === "loading";
+  $("libRefresh").textContent = libState === "loading" ? "Cargando…" : libState === "fresh" ? "Actualizar" : "Cargar desde Drive";
+  $("libNote").textContent = cfg.folderName ? "En «" + cfg.folderName + "» de tu Drive" : "En tu Google Drive";
+  const msg = (text, cls) => { const p = document.createElement("p"); p.className = cls || "empty"; p.textContent = text; el.append(p); };
+  if (libState === "error") msg(libError, "err");
+  if (!cloudReady()) { msg("Conecta Google Drive y aquí verás todos tus vídeos, desde cualquier ordenador en el que inicies sesión."); return; }
+  if (!lib.length) {
+    msg(libState === "loading" ? "Cargando tus vídeos de Drive…" : libState === "fresh" ? "Tu carpeta aún no tiene vídeos. Cuando guardes el primero, aparecerá aquí con su enlace." : "Pulsa «Cargar desde Drive» para ver los vídeos que hayas guardado, también los grabados en otros ordenadores.");
+    return;
+  }
+  lib.forEach((it) => {
     const row = document.createElement("div"); row.className = "item";
     const t = document.createElement("strong"); t.textContent = it.title;
     const acts = document.createElement("div"); acts.className = "acts";
     const c = document.createElement("button"); c.type = "button"; c.className = "btn"; c.textContent = "Copiar enlace"; c.onclick = () => copyText(it.share, "Enlace copiado");
     const o = document.createElement("a"); o.className = "btn"; o.textContent = "Ver"; o.href = it.share; o.target = "_blank"; o.rel = "noopener";
-    const x = document.createElement("button"); x.type = "button"; x.className = "btn ghost"; x.textContent = "Quitar"; x.title = "Quitar de esta lista (el vídeo sigue en tu Drive)";
-    x.onclick = () => { lib.splice(i, 1); store.set("toma.lib", lib); paintLib(); toast("Quitado de la lista. El vídeo sigue en tu Drive."); };
-    acts.append(c, o, x);
+    acts.append(c, o);
     const meta = document.createElement("div"); meta.className = "meta";
-    meta.textContent = new Date(it.date).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " · " + fmtTime(it.dur || 0) + " · " + fmtMB(it.size || 0);
+    const tag = document.createElement("span"); tag.className = "tag" + (it.pub ? " cloud" : ""); tag.textContent = it.pub ? "Con enlace" : "Solo tú";
+    tag.title = it.pub ? "Cualquiera con el enlace puede verlo" : "Solo lo ves tú; compártelo desde Drive si quieres";
+    const txt = document.createElement("span");
+    txt.textContent = new Date(it.date).toLocaleString("es-ES", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) + (it.dur ? " · " + fmtTime(it.dur) : "") + (it.size ? " · " + fmtMB(it.size) : "");
+    meta.append(tag, txt);
     row.append(t, acts, meta); el.append(row);
   });
+  if (libState === "cache") { const p = document.createElement("p"); p.className = "note libmore"; p.textContent = "Lista guardada de tu última visita. Pulsa «Cargar desde Drive» para ver los vídeos de otros ordenadores."; el.append(p); }
 }
 paintLib();
 
