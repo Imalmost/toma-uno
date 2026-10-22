@@ -1,0 +1,1299 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Toma Uno</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101219">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-title" content="Toma Uno">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: una sola columna de trabajo — panel de grabación arriba, biblioteca debajo; el botón REC es el único acento fuerte */
+:root{
+  --bg:#f3f4f7; --surface:#ffffff; --sunk:#e8eaf0; --line:#d7dae3;
+  --fg:#171a24; --muted:#5d6375; --rec:#e5342b; --rec-ink:#ffffff; --ok:#1d8a5a; --warn:#b26a00;
+  --focus:#3a5bd9;
+  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101219; --surface:#181b25; --sunk:#0c0e14; --line:#2a2f3d;
+  --fg:#eceef4; --muted:#9aa1b4; --rec:#ff4a3d; --rec-ink:#ffffff; --ok:#3fc489; --warn:#f0a73a; --focus:#7d97ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101219; --surface:#181b25; --sunk:#0c0e14; --line:#2a2f3d;
+  --fg:#eceef4; --muted:#9aa1b4; --rec:#ff4a3d; --rec-ink:#ffffff; --ok:#3fc489; --warn:#f0a73a; --focus:#7d97ff; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:880px;margin:0 auto;display:grid;gap:24px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font:800 24px/1 var(--f-display);letter-spacing:-.02em}
+.brand i{width:14px;height:14px;border-radius:50%;background:var(--rec);box-shadow:0 0 0 4px color-mix(in srgb,var(--rec) 22%,transparent)}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);
+  border-radius:999px;padding:7px 14px;font:500 13px var(--f-body);cursor:pointer}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip.on .dot{background:var(--ok)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px;display:grid;gap:20px}
+h1{font:600 clamp(26px,4.4vw,36px)/1.1 var(--f-display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font:600 20px/1.2 var(--f-display);margin:0}
+.lede{color:var(--muted);margin:6px 0 0;max-width:62ch}
+.sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.src{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;align-content:start;background:var(--bg)}
+.src label.tg{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer}
+.src small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.src select{width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.src.off{opacity:.55}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--rec);margin:0}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.field{display:grid;gap:6px;min-width:0}
+.field>span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field input,.field select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+.rec-btn{display:inline-flex;align-items:center;gap:12px;background:var(--rec);color:var(--rec-ink);border:0;border-radius:999px;
+  padding:14px 26px 14px 20px;font:600 17px var(--f-display);box-shadow:0 6px 20px -8px var(--rec)}
+.rec-btn i{width:16px;height:16px;border-radius:50%;background:var(--rec-ink)}
+.rec-btn:disabled{opacity:.5;cursor:not-allowed}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.note{color:var(--muted);font-size:13px}
+.banner{border:1px solid var(--rec);background:color-mix(in srgb,var(--rec) 9%,var(--surface));border-radius:12px;padding:14px 16px;display:grid;gap:6px}
+.banner strong{font-weight:600}
+.banner p{margin:0;color:var(--fg);font-size:14px}
+.help summary{cursor:pointer;font-weight:600}
+.help ol{margin:10px 0 0;padding-left:20px;display:grid;gap:6px;font-size:14px}
+.diag{font:12px/1.5 var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.err{color:var(--rec);font-size:14px}
+.preview{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:start}
+.cam-prev{width:150px;aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--sunk);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);max-width:100%}
+.cam-prev video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+@media (max-width:560px){.preview{grid-template-columns:1fr}.cam-prev{width:120px}}
+/* estado grabando */
+.live{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--sunk);border-radius:12px;padding:16px 18px}
+.timer{font:500 34px/1 var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pulse{width:12px;height:12px;border-radius:50%;background:var(--rec);animation:pulse 1.2s infinite}
+.paused .pulse{animation:none;background:var(--warn)}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.meter{flex:1 1 180px;min-width:0;display:grid;gap:6px}
+.bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden}
+.bar b{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+.bar.warn b{background:var(--warn)} .bar.full b{background:var(--rec)}
+.meter small{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+video.result{width:100%;max-width:100%;border-radius:12px;background:#000;aspect-ratio:16/9}
+.linkbox{display:flex;gap:8px;flex-wrap:wrap}
+.linkbox input{flex:1 1 260px;min-width:0;background:var(--bg);border:1px solid var(--ok);border-radius:10px;padding:10px 12px;font:13px var(--f-mono)}
+.countdown{position:fixed;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(4px);z-index:50}
+.countdown span{font:800 160px/1 var(--f-display);color:var(--rec)}
+/* biblioteca */
+.lib{display:grid;gap:0}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item strong{font-weight:600;overflow-wrap:anywhere}
+.item .meta{font:12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.item .acts{display:flex;gap:6px;grid-row:span 2;flex-wrap:wrap;justify-content:flex-end}
+.item .acts .btn{padding:7px 12px;font-size:13px}
+.tag{font:600 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--sunk);color:var(--muted)}
+.tag.cloud{color:var(--ok)}
+.empty{color:var(--muted);padding:8px 0}
+/* ajustes */
+dialog{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--fg);padding:0;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px)}
+dialog::backdrop{background:rgb(0 0 0 / .45)}
+.dlg{padding:24px;display:grid;gap:16px}
+.steps{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--fg)}
+.steps li::marker{font-weight:600;color:var(--muted)}
+pre{margin:0;background:var(--sunk);border-radius:10px;padding:12px;overflow-x:auto;font:12.5px/1.5 var(--f-mono)}
+code{font-family:var(--f-mono);font-size:.92em;background:var(--sunk);padding:1px 5px;border-radius:5px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);
+  padding:10px 18px;border-radius:999px;font-weight:600;z-index:60;box-shadow:0 8px 24px -10px rgb(0 0 0 / .5)}
+/* modo reproductor */
+.player{max-width:1000px;margin:0 auto;display:grid;gap:16px}
+.player h1{font-size:clamp(22px,3.6vw,30px)}
+</style>
+</head>
+<body>
+
+<!-- ===== Grabadora ===== -->
+<div class="wrap" id="app">
+  <header>
+    <div class="brand"><i></i>Toma Uno</div>
+    <button class="chip" id="cloudChip" type="button"><span class="dot"></span><span id="cloudLabel">Conectar Google Drive</span></button>
+  </header>
+
+  <section class="panel" id="setupPanel">
+    <div>
+      <h1>Graba tu pantalla y comparte el enlace</h1>
+      <div class="banner" id="envBanner" hidden><strong id="envTitle"></strong><p id="envText"></p></div>
+      <p class="lede">Elige qué quieres grabar, pulsa el botón y selecciona la pantalla o ventana. Al terminar, el vídeo se guarda en tu carpeta de Google Drive y te queda un enlace listo para pegar.</p>
+    </div>
+
+    <div class="sources">
+      <div class="src" id="srcScreen">
+        <label class="tg"><input type="checkbox" id="optScreen" checked> Pantalla</label>
+        <small>Pantalla completa, una ventana o una pestaña.</small>
+      </div>
+      <div class="src" id="srcMic">
+        <label class="tg"><input type="checkbox" id="optMic" checked> Micrófono</label>
+        <select id="micSel" aria-label="Micrófono"><option value="">Micrófono predeterminado</option></select>
+      </div>
+      <div class="src off" id="srcCam">
+        <label class="tg"><input type="checkbox" id="optCam"> Cámara</label>
+        <select id="camSel" aria-label="Cámara"><option value="">Cámara predeterminada</option></select>
+        <small>Burbuja flotante encima de todo. Para que salga en el vídeo, comparte la pantalla completa.</small>
+      </div>
+      <div class="src" id="srcSys">
+        <label class="tg"><input type="checkbox" id="optSys"> Sonido del ordenador</label>
+        <small>Chrome lo permite al compartir una pestaña, o la pantalla completa en Windows.</small>
+      </div>
+    </div>
+
+    <div class="preview" id="camWrap" hidden>
+      <div class="note" id="bubbleNote">La burbuja de cámara está flotando. Puedes moverla y cambiarle el tamaño. Si la cierras, vuelve a marcar «Cámara».</div>
+      <div class="cam-prev"><video id="camVideo" autoplay muted playsinline></video></div>
+    </div>
+    <div class="row" id="pipFallback" hidden>
+      <button class="btn" type="button" id="pipBtn">Sacar la cámara en ventana flotante</button>
+      <span class="note">Tu navegador no admite la burbuja redonda; usa la ventana flotante normal.</span>
+    </div>
+
+    <div class="row">
+      <div class="field" style="flex:1 1 220px">
+        <span>Calidad</span>
+        <select id="quality">
+          <option value="800000">Ligera · unos 6 MB por minuto</option>
+          <option value="1500000" selected>Normal · unos 11 MB por minuto</option>
+          <option value="3000000">Alta · unos 22 MB por minuto</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1 1 220px">
+        <span>Cuenta atrás</span>
+        <select id="countdownSel">
+          <option value="3" selected>3 segundos</option>
+          <option value="0">Sin cuenta atrás</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="rec-btn" id="startBtn" type="button"><i></i>Empezar a grabar</button>
+      <span class="err" id="startErr" role="alert"></span>
+    </div>
+
+    <details class="help" id="help">
+      <summary>¿No graba? Revisa esto</summary>
+      <ol>
+        <li>Usa <b>Google Chrome</b> en el ordenador. Safari y la vista previa de Claude no sirven.</li>
+        <li>En el Mac: <b>Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema</b>. Activa <b>Google Chrome</b>, ciérralo del todo (Cmd+Q) y vuelve a abrirlo.</li>
+        <li>En la misma sección, en <b>Micrófono</b> y <b>Cámara</b>, activa también Google Chrome.</li>
+        <li>Al pulsar «Empezar a grabar», elige una pestaña, una ventana o la pantalla y pulsa <b>Compartir</b>.</li>
+        <li>Si sigue sin funcionar, copia esta línea y mándamela:
+          <div class="diag" id="diag"></div></li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="panel" id="livePanel" hidden>
+    <div class="live" id="liveBox">
+      <span class="pulse"></span>
+      <span class="timer" id="timer">00:00</span>
+      <div class="meter">
+        <small id="sizeLabel">0,0 MB grabados</small>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" id="pauseBtn">Pausar</button>
+      <button class="btn primary" type="button" id="stopBtn">Terminar</button>
+      <button class="btn ghost" type="button" id="cancelBtn">Descartar</button>
+    </div>
+    <p class="err" id="liveErr" role="alert" hidden></p>
+    <p class="note" id="liveNote">Puedes cambiar de ventana: la grabación sigue aunque no veas esta página.</p>
+  </section>
+
+  <section class="panel" id="donePanel" hidden>
+    <h2>Tu grabación</h2>
+    <video class="result" id="resultVideo" controls playsinline></video>
+    <div class="field">
+      <span>Título</span>
+      <input id="titleIn" type="text" maxlength="120" placeholder="Por ejemplo: Cómo rellenar la declaración">
+    </div>
+    <div class="row">
+      <button class="btn primary" type="button" id="uploadBtn">Subir y copiar enlace</button>
+      <button class="btn" type="button" id="downloadBtn">Descargar</button>
+      <button class="btn ghost" type="button" id="newBtn">Grabar otro</button>
+    </div>
+    <div class="meter" id="upMeter" hidden>
+      <div class="bar"><b id="upBar"></b></div>
+      <small id="upLabel">Subiendo…</small>
+    </div>
+    <div class="linkbox" id="linkBox" hidden>
+      <input id="linkOut" type="text" readonly aria-label="Enlace para compartir">
+      <button class="btn primary" type="button" id="copyBtn">Copiar enlace</button>
+      <a class="btn" id="openLink" href="#" target="_blank" rel="noopener">Abrir</a>
+    </div>
+    <p class="err" id="upErr" role="alert"></p>
+  </section>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2>Tus vídeos</h2>
+      <span class="note">Guardados en este navegador</span>
+    </div>
+    <div class="lib" id="lib"></div>
+  </section>
+</div>
+
+<dialog id="settings">
+  <form class="dlg" id="settingsForm" method="dialog">
+    <h2>Guardar en tu Google Drive</h2>
+    <div id="fileWarn" class="err" hidden>Ahora mismo has abierto la app como archivo de tu ordenador. Google solo permite iniciar sesión desde una dirección web: ábrela con el lanzador «Abrir Toma Uno» o desde tu dirección de GitHub Pages.</div>
+    <details id="howto">
+      <summary><b>Primera vez: crear tu clave de Google (una sola vez, unos 10 minutos)</b></summary>
+      <ol class="steps" style="margin-top:12px">
+        <li>Entra en <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> con tu cuenta de Google y crea un proyecto (por ejemplo «Toma Uno»).</li>
+        <li>Busca <b>Google Drive API</b> en la barra de arriba y pulsa <b>Habilitar</b>.</li>
+        <li>Ve a <b>Google Auth Platform</b> (o «Pantalla de consentimiento de OAuth»): pon un nombre, tu correo, tipo <b>Externo</b>. En <b>Público / Usuarios de prueba</b>, añade tu propio correo.</li>
+        <li>En <b>Clientes</b> → <b>Crear cliente</b> → tipo <b>Aplicación web</b>. En <b>Orígenes de JavaScript autorizados</b> añade esta dirección:
+          <div class="linkbox" style="margin-top:8px"><input id="originOut" type="text" readonly aria-label="Origen autorizado"><button class="btn" type="button" id="copyOrigin">Copiar</button></div>
+        </li>
+        <li>Copia el <b>ID de cliente</b> (termina en <code>.apps.googleusercontent.com</code>) y pégalo abajo.</li>
+      </ol>
+      <p class="note">Al iniciar sesión, Google te avisará de que la app «no está verificada». Es normal porque la has creado tú: pulsa <b>Continuar</b>.</p>
+    </details>
+    <label class="field"><span>ID de cliente de Google</span><input id="cfgClient" type="text" placeholder="123456789-abc….apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>Nombre de la carpeta en Drive</span><input id="cfgFolder" type="text" maxlength="100" value="Toma Uno" autocomplete="off"></label>
+    <p class="note" style="margin-top:-8px">La app crea esta carpeta en tu Drive y solo puede ver lo que hay dentro de ella, nada más de tu Drive. Después puedes moverla o renombrarla en Drive donde quieras: la app la seguirá usando.</p>
+    <p class="note" id="folderLinkRow" hidden><a id="folderLink" href="#" target="_blank" rel="noopener">Abrir la carpeta en Drive</a></p>
+    <label class="tg" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="cfgPublic" checked> Que cualquiera con el enlace pueda ver el vídeo</label>
+    <p class="note" id="folderStatus"></p>
+    <div class="row">
+      <button class="btn primary" type="submit" id="saveCfg">Guardar y comprobar</button>
+      <button class="btn ghost" type="button" id="closeCfg">Cerrar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="countdown" id="countdown" hidden><span id="cdNum">3</span></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+/* fix-webm-duration 1.0.6 · (c) 2018 Yury Sitnikov · MIT */
+(function (name, definition) {
+    if (typeof define === 'function' && define.amd) { // RequireJS / AMD
+        define(definition);
+    } else if (typeof module !== 'undefined' && module.exports) { // CommonJS / Node.js
+        module.exports = definition();
+    } else { // Direct include
+        window.ysFixWebmDuration = definition();
+    }
+})('fix-webm-duration', function () {
+    /*
+     * This is the list of possible WEBM file sections by their IDs.
+     * Possible types: Container, Binary, Uint, Int, String, Float, Date
+     */
+    var sections = {
+        0xa45dfa3: { name: 'EBML', type: 'Container' },
+        0x286: { name: 'EBMLVersion', type: 'Uint' },
+        0x2f7: { name: 'EBMLReadVersion', type: 'Uint' },
+        0x2f2: { name: 'EBMLMaxIDLength', type: 'Uint' },
+        0x2f3: { name: 'EBMLMaxSizeLength', type: 'Uint' },
+        0x282: { name: 'DocType', type: 'String' },
+        0x287: { name: 'DocTypeVersion', type: 'Uint' },
+        0x285: { name: 'DocTypeReadVersion', type: 'Uint' },
+        0x6c: { name: 'Void', type: 'Binary' },
+        0x3f: { name: 'CRC-32', type: 'Binary' },
+        0xb538667: { name: 'SignatureSlot', type: 'Container' },
+        0x3e8a: { name: 'SignatureAlgo', type: 'Uint' },
+        0x3e9a: { name: 'SignatureHash', type: 'Uint' },
+        0x3ea5: { name: 'SignaturePublicKey', type: 'Binary' },
+        0x3eb5: { name: 'Signature', type: 'Binary' },
+        0x3e5b: { name: 'SignatureElements', type: 'Container' },
+        0x3e7b: { name: 'SignatureElementList', type: 'Container' },
+        0x2532: { name: 'SignedElement', type: 'Binary' },
+        0x8538067: { name: 'Segment', type: 'Container' },
+        0x14d9b74: { name: 'SeekHead', type: 'Container' },
+        0xdbb: { name: 'Seek', type: 'Container' },
+        0x13ab: { name: 'SeekID', type: 'Binary' },
+        0x13ac: { name: 'SeekPosition', type: 'Uint' },
+        0x549a966: { name: 'Info', type: 'Container' },
+        0x33a4: { name: 'SegmentUID', type: 'Binary' },
+        0x3384: { name: 'SegmentFilename', type: 'String' },
+        0x1cb923: { name: 'PrevUID', type: 'Binary' },
+        0x1c83ab: { name: 'PrevFilename', type: 'String' },
+        0x1eb923: { name: 'NextUID', type: 'Binary' },
+        0x1e83bb: { name: 'NextFilename', type: 'String' },
+        0x444: { name: 'SegmentFamily', type: 'Binary' },
+        0x2924: { name: 'ChapterTranslate', type: 'Container' },
+        0x29fc: { name: 'ChapterTranslateEditionUID', type: 'Uint' },
+        0x29bf: { name: 'ChapterTranslateCodec', type: 'Uint' },
+        0x29a5: { name: 'ChapterTranslateID', type: 'Binary' },
+        0xad7b1: { name: 'TimecodeScale', type: 'Uint' },
+        0x489: { name: 'Duration', type: 'Float' },
+        0x461: { name: 'DateUTC', type: 'Date' },
+        0x3ba9: { name: 'Title', type: 'String' },
+        0xd80: { name: 'MuxingApp', type: 'String' },
+        0x1741: { name: 'WritingApp', type: 'String' },
+        // 0xf43b675: { name: 'Cluster', type: 'Container' },
+        0x67: { name: 'Timecode', type: 'Uint' },
+        0x1854: { name: 'SilentTracks', type: 'Container' },
+        0x18d7: { name: 'SilentTrackNumber', type: 'Uint' },
+        0x27: { name: 'Position', type: 'Uint' },
+        0x2b: { name: 'PrevSize', type: 'Uint' },
+        0x23: { name: 'SimpleBlock', type: 'Binary' },
+        0x20: { name: 'BlockGroup', type: 'Container' },
+        0x21: { name: 'Block', type: 'Binary' },
+        0x22: { name: 'BlockVirtual', type: 'Binary' },
+        0x35a1: { name: 'BlockAdditions', type: 'Container' },
+        0x26: { name: 'BlockMore', type: 'Container' },
+        0x6e: { name: 'BlockAddID', type: 'Uint' },
+        0x25: { name: 'BlockAdditional', type: 'Binary' },
+        0x1b: { name: 'BlockDuration', type: 'Uint' },
+        0x7a: { name: 'ReferencePriority', type: 'Uint' },
+        0x7b: { name: 'ReferenceBlock', type: 'Int' },
+        0x7d: { name: 'ReferenceVirtual', type: 'Int' },
+        0x24: { name: 'CodecState', type: 'Binary' },
+        0x35a2: { name: 'DiscardPadding', type: 'Int' },
+        0xe: { name: 'Slices', type: 'Container' },
+        0x68: { name: 'TimeSlice', type: 'Container' },
+        0x4c: { name: 'LaceNumber', type: 'Uint' },
+        0x4d: { name: 'FrameNumber', type: 'Uint' },
+        0x4b: { name: 'BlockAdditionID', type: 'Uint' },
+        0x4e: { name: 'Delay', type: 'Uint' },
+        0x4f: { name: 'SliceDuration', type: 'Uint' },
+        0x48: { name: 'ReferenceFrame', type: 'Container' },
+        0x49: { name: 'ReferenceOffset', type: 'Uint' },
+        0x4a: { name: 'ReferenceTimeCode', type: 'Uint' },
+        0x2f: { name: 'EncryptedBlock', type: 'Binary' },
+        0x654ae6b: { name: 'Tracks', type: 'Container' },
+        0x2e: { name: 'TrackEntry', type: 'Container' },
+        0x57: { name: 'TrackNumber', type: 'Uint' },
+        0x33c5: { name: 'TrackUID', type: 'Uint' },
+        0x3: { name: 'TrackType', type: 'Uint' },
+        0x39: { name: 'FlagEnabled', type: 'Uint' },
+        0x8: { name: 'FlagDefault', type: 'Uint' },
+        0x15aa: { name: 'FlagForced', type: 'Uint' },
+        0x1c: { name: 'FlagLacing', type: 'Uint' },
+        0x2de7: { name: 'MinCache', type: 'Uint' },
+        0x2df8: { name: 'MaxCache', type: 'Uint' },
+        0x3e383: { name: 'DefaultDuration', type: 'Uint' },
+        0x34e7a: { name: 'DefaultDecodedFieldDuration', type: 'Uint' },
+        0x3314f: { name: 'TrackTimecodeScale', type: 'Float' },
+        0x137f: { name: 'TrackOffset', type: 'Int' },
+        0x15ee: { name: 'MaxBlockAdditionID', type: 'Uint' },
+        0x136e: { name: 'Name', type: 'String' },
+        0x2b59c: { name: 'Language', type: 'String' },
+        0x6: { name: 'CodecID', type: 'String' },
+        0x23a2: { name: 'CodecPrivate', type: 'Binary' },
+        0x58688: { name: 'CodecName', type: 'String' },
+        0x3446: { name: 'AttachmentLink', type: 'Uint' },
+        0x1a9697: { name: 'CodecSettings', type: 'String' },
+        0x1b4040: { name: 'CodecInfoURL', type: 'String' },
+        0x6b240: { name: 'CodecDownloadURL', type: 'String' },
+        0x2a: { name: 'CodecDecodeAll', type: 'Uint' },
+        0x2fab: { name: 'TrackOverlay', type: 'Uint' },
+        0x16aa: { name: 'CodecDelay', type: 'Uint' },
+        0x16bb: { name: 'SeekPreRoll', type: 'Uint' },
+        0x2624: { name: 'TrackTranslate', type: 'Container' },
+        0x26fc: { name: 'TrackTranslateEditionUID', type: 'Uint' },
+        0x26bf: { name: 'TrackTranslateCodec', type: 'Uint' },
+        0x26a5: { name: 'TrackTranslateTrackID', type: 'Binary' },
+        0x60: { name: 'Video', type: 'Container' },
+        0x1a: { name: 'FlagInterlaced', type: 'Uint' },
+        0x13b8: { name: 'StereoMode', type: 'Uint' },
+        0x13c0: { name: 'AlphaMode', type: 'Uint' },
+        0x13b9: { name: 'OldStereoMode', type: 'Uint' },
+        0x30: { name: 'PixelWidth', type: 'Uint' },
+        0x3a: { name: 'PixelHeight', type: 'Uint' },
+        0x14aa: { name: 'PixelCropBottom', type: 'Uint' },
+        0x14bb: { name: 'PixelCropTop', type: 'Uint' },
+        0x14cc: { name: 'PixelCropLeft', type: 'Uint' },
+        0x14dd: { name: 'PixelCropRight', type: 'Uint' },
+        0x14b0: { name: 'DisplayWidth', type: 'Uint' },
+        0x14ba: { name: 'DisplayHeight', type: 'Uint' },
+        0x14b2: { name: 'DisplayUnit', type: 'Uint' },
+        0x14b3: { name: 'AspectRatioType', type: 'Uint' },
+        0xeb524: { name: 'ColourSpace', type: 'Binary' },
+        0xfb523: { name: 'GammaValue', type: 'Float' },
+        0x383e3: { name: 'FrameRate', type: 'Float' },
+        0x61: { name: 'Audio', type: 'Container' },
+        0x35: { name: 'SamplingFrequency', type: 'Float' },
+        0x38b5: { name: 'OutputSamplingFrequency', type: 'Float' },
+        0x1f: { name: 'Channels', type: 'Uint' },
+        0x3d7b: { name: 'ChannelPositions', type: 'Binary' },
+        0x2264: { name: 'BitDepth', type: 'Uint' },
+        0x62: { name: 'TrackOperation', type: 'Container' },
+        0x63: { name: 'TrackCombinePlanes', type: 'Container' },
+        0x64: { name: 'TrackPlane', type: 'Container' },
+        0x65: { name: 'TrackPlaneUID', type: 'Uint' },
+        0x66: { name: 'TrackPlaneType', type: 'Uint' },
+        0x69: { name: 'TrackJoinBlocks', type: 'Container' },
+        0x6d: { name: 'TrackJoinUID', type: 'Uint' },
+        0x40: { name: 'TrickTrackUID', type: 'Uint' },
+        0x41: { name: 'TrickTrackSegmentUID', type: 'Binary' },
+        0x46: { name: 'TrickTrackFlag', type: 'Uint' },
+        0x47: { name: 'TrickMasterTrackUID', type: 'Uint' },
+        0x44: { name: 'TrickMasterTrackSegmentUID', type: 'Binary' },
+        0x2d80: { name: 'ContentEncodings', type: 'Container' },
+        0x2240: { name: 'ContentEncoding', type: 'Container' },
+        0x1031: { name: 'ContentEncodingOrder', type: 'Uint' },
+        0x1032: { name: 'ContentEncodingScope', type: 'Uint' },
+        0x1033: { name: 'ContentEncodingType', type: 'Uint' },
+        0x1034: { name: 'ContentCompression', type: 'Container' },
+        0x254: { name: 'ContentCompAlgo', type: 'Uint' },
+        0x255: { name: 'ContentCompSettings', type: 'Binary' },
+        0x1035: { name: 'ContentEncryption', type: 'Container' },
+        0x7e1: { name: 'ContentEncAlgo', type: 'Uint' },
+        0x7e2: { name: 'ContentEncKeyID', type: 'Binary' },
+        0x7e3: { name: 'ContentSignature', type: 'Binary' },
+        0x7e4: { name: 'ContentSigKeyID', type: 'Binary' },
+        0x7e5: { name: 'ContentSigAlgo', type: 'Uint' },
+        0x7e6: { name: 'ContentSigHashAlgo', type: 'Uint' },
+        0xc53bb6b: { name: 'Cues', type: 'Container' },
+        0x3b: { name: 'CuePoint', type: 'Container' },
+        0x33: { name: 'CueTime', type: 'Uint' },
+        0x37: { name: 'CueTrackPositions', type: 'Container' },
+        0x77: { name: 'CueTrack', type: 'Uint' },
+        0x71: { name: 'CueClusterPosition', type: 'Uint' },
+        0x70: { name: 'CueRelativePosition', type: 'Uint' },
+        0x32: { name: 'CueDuration', type: 'Uint' },
+        0x1378: { name: 'CueBlockNumber', type: 'Uint' },
+        0x6a: { name: 'CueCodecState', type: 'Uint' },
+        0x5b: { name: 'CueReference', type: 'Container' },
+        0x16: { name: 'CueRefTime', type: 'Uint' },
+        0x17: { name: 'CueRefCluster', type: 'Uint' },
+        0x135f: { name: 'CueRefNumber', type: 'Uint' },
+        0x6b: { name: 'CueRefCodecState', type: 'Uint' },
+        0x941a469: { name: 'Attachments', type: 'Container' },
+        0x21a7: { name: 'AttachedFile', type: 'Container' },
+        0x67e: { name: 'FileDescription', type: 'String' },
+        0x66e: { name: 'FileName', type: 'String' },
+        0x660: { name: 'FileMimeType', type: 'String' },
+        0x65c: { name: 'FileData', type: 'Binary' },
+        0x6ae: { name: 'FileUID', type: 'Uint' },
+        0x675: { name: 'FileReferral', type: 'Binary' },
+        0x661: { name: 'FileUsedStartTime', type: 'Uint' },
+        0x662: { name: 'FileUsedEndTime', type: 'Uint' },
+        0x43a770: { name: 'Chapters', type: 'Container' },
+        0x5b9: { name: 'EditionEntry', type: 'Container' },
+        0x5bc: { name: 'EditionUID', type: 'Uint' },
+        0x5bd: { name: 'EditionFlagHidden', type: 'Uint' },
+        0x5db: { name: 'EditionFlagDefault', type: 'Uint' },
+        0x5dd: { name: 'EditionFlagOrdered', type: 'Uint' },
+        0x36: { name: 'ChapterAtom', type: 'Container' },
+        0x33c4: { name: 'ChapterUID', type: 'Uint' },
+        0x1654: { name: 'ChapterStringUID', type: 'String' },
+        0x11: { name: 'ChapterTimeStart', type: 'Uint' },
+        0x12: { name: 'ChapterTimeEnd', type: 'Uint' },
+        0x18: { name: 'ChapterFlagHidden', type: 'Uint' },
+        0x598: { name: 'ChapterFlagEnabled', type: 'Uint' },
+        0x2e67: { name: 'ChapterSegmentUID', type: 'Binary' },
+        0x2ebc: { name: 'ChapterSegmentEditionUID', type: 'Uint' },
+        0x23c3: { name: 'ChapterPhysicalEquiv', type: 'Uint' },
+        0xf: { name: 'ChapterTrack', type: 'Container' },
+        0x9: { name: 'ChapterTrackNumber', type: 'Uint' },
+        0x0: { name: 'ChapterDisplay', type: 'Container' },
+        0x5: { name: 'ChapString', type: 'String' },
+        0x37c: { name: 'ChapLanguage', type: 'String' },
+        0x37e: { name: 'ChapCountry', type: 'String' },
+        0x2944: { name: 'ChapProcess', type: 'Container' },
+        0x2955: { name: 'ChapProcessCodecID', type: 'Uint' },
+        0x50d: { name: 'ChapProcessPrivate', type: 'Binary' },
+        0x2911: { name: 'ChapProcessCommand', type: 'Container' },
+        0x2922: { name: 'ChapProcessTime', type: 'Uint' },
+        0x2933: { name: 'ChapProcessData', type: 'Binary' },
+        0x254c367: { name: 'Tags', type: 'Container' },
+        0x3373: { name: 'Tag', type: 'Container' },
+        0x23c0: { name: 'Targets', type: 'Container' },
+        0x28ca: { name: 'TargetTypeValue', type: 'Uint' },
+        0x23ca: { name: 'TargetType', type: 'String' },
+        0x23c5: { name: 'TagTrackUID', type: 'Uint' },
+        0x23c9: { name: 'TagEditionUID', type: 'Uint' },
+        0x23c4: { name: 'TagChapterUID', type: 'Uint' },
+        0x23c6: { name: 'TagAttachmentUID', type: 'Uint' },
+        0x27c8: { name: 'SimpleTag', type: 'Container' },
+        0x5a3: { name: 'TagName', type: 'String' },
+        0x47a: { name: 'TagLanguage', type: 'String' },
+        0x484: { name: 'TagDefault', type: 'Uint' },
+        0x487: { name: 'TagString', type: 'String' },
+        0x485: { name: 'TagBinary', type: 'Binary' }
+    };
+
+    function doInherit(newClass, baseClass) {
+        newClass.prototype = Object.create(baseClass.prototype);
+        newClass.prototype.constructor = newClass;
+    }
+
+    function WebmBase(name, type) {
+        this.name = name || 'Unknown';
+        this.type = type || 'Unknown';
+    }
+    WebmBase.prototype.updateBySource = function() { };
+    WebmBase.prototype.setSource = function(source) {
+        this.source = source;
+        this.updateBySource();
+    };
+    WebmBase.prototype.updateByData = function() { };
+    WebmBase.prototype.setData = function(data) {
+        this.data = data;
+        this.updateByData();
+    };
+
+    function WebmUint(name, type) {
+        WebmBase.call(this, name, type || 'Uint');
+    }
+    doInherit(WebmUint, WebmBase);
+    function padHex(hex) {
+        return hex.length % 2 === 1 ? '0' + hex : hex;
+    }
+    WebmUint.prototype.updateBySource = function() {
+        // use hex representation of a number instead of number value
+        this.data = '';
+        for (var i = 0; i < this.source.length; i++) {
+            var hex = this.source[i].toString(16);
+            this.data += padHex(hex);
+        }
+    };
+    WebmUint.prototype.updateByData = function() {
+        var length = this.data.length / 2;
+        this.source = new Uint8Array(length);
+        for (var i = 0; i < length; i++) {
+            var hex = this.data.substr(i * 2, 2);
+            this.source[i] = parseInt(hex, 16);
+        }
+    };
+    WebmUint.prototype.getValue = function() {
+        return parseInt(this.data, 16);
+    };
+    WebmUint.prototype.setValue = function(value) {
+        this.setData(padHex(value.toString(16)));
+    };
+
+    function WebmFloat(name, type) {
+        WebmBase.call(this, name, type || 'Float');
+    }
+    doInherit(WebmFloat, WebmBase);
+    WebmFloat.prototype.getFloatArrayType = function() {
+        return this.source && this.source.length === 4 ? Float32Array : Float64Array;
+    };
+    WebmFloat.prototype.updateBySource = function() {
+        var byteArray = this.source.reverse();
+        var floatArrayType = this.getFloatArrayType();
+        var floatArray = new floatArrayType(byteArray.buffer);
+        this.data = floatArray[0];
+    };
+    WebmFloat.prototype.updateByData = function() {
+        var floatArrayType = this.getFloatArrayType();
+        var floatArray = new floatArrayType([ this.data ]);
+        var byteArray = new Uint8Array(floatArray.buffer);
+        this.source = byteArray.reverse();
+    };
+    WebmFloat.prototype.getValue = function() {
+        return this.data;
+    };
+    WebmFloat.prototype.setValue = function(value) {
+        this.setData(value);
+    };
+
+    function WebmContainer(name, type) {
+        WebmBase.call(this, name, type || 'Container');
+    }
+    doInherit(WebmContainer, WebmBase);
+    WebmContainer.prototype.readByte = function() {
+        return this.source[this.offset++];
+    };
+    WebmContainer.prototype.readUint = function() {
+        var firstByte = this.readByte();
+        var bytes = 8 - firstByte.toString(2).length;
+        var value = firstByte - (1 << (7 - bytes));
+        for (var i = 0; i < bytes; i++) {
+            // don't use bit operators to support x86
+            value *= 256;
+            value += this.readByte();
+        }
+        return value;
+    };
+    WebmContainer.prototype.updateBySource = function() {
+        this.data = [];
+        for (this.offset = 0; this.offset < this.source.length; this.offset = end) {
+            var id = this.readUint();
+            var len = this.readUint();
+            var end = Math.min(this.offset + len, this.source.length);
+            var data = this.source.slice(this.offset, end);
+
+            var info = sections[id] || { name: 'Unknown', type: 'Unknown' };
+            var ctr = WebmBase;
+            switch (info.type) {
+                case 'Container':
+                    ctr = WebmContainer;
+                    break;
+                case 'Uint':
+                    ctr = WebmUint;
+                    break;
+                case 'Float':
+                    ctr = WebmFloat;
+                    break;
+            }
+            var section = new ctr(info.name, info.type);
+            section.setSource(data);
+            this.data.push({
+                id: id,
+                idHex: id.toString(16),
+                data: section
+            });
+        }
+    };
+    WebmContainer.prototype.writeUint = function(x, draft) {
+        for (var bytes = 1, flag = 0x80; x >= flag && bytes < 8; bytes++, flag *= 0x80) { }
+
+        if (!draft) {
+            var value = flag + x;
+            for (var i = bytes - 1; i >= 0; i--) {
+                // don't use bit operators to support x86
+                var c = value % 256;
+                this.source[this.offset + i] = c;
+                value = (value - c) / 256;
+            }
+        }
+
+        this.offset += bytes;
+    };
+    WebmContainer.prototype.writeSections = function(draft) {
+        this.offset = 0;
+        for (var i = 0; i < this.data.length; i++) {
+            var section = this.data[i],
+                content = section.data.source,
+                contentLength = content.length;
+            this.writeUint(section.id, draft);
+            this.writeUint(contentLength, draft);
+            if (!draft) {
+                this.source.set(content, this.offset);
+            }
+            this.offset += contentLength;
+        }
+        return this.offset;
+    };
+    WebmContainer.prototype.updateByData = function() {
+        // run without accessing this.source to determine total length - need to know it to create Uint8Array
+        var length = this.writeSections('draft');
+        this.source = new Uint8Array(length);
+        // now really write data
+        this.writeSections();
+    };
+    WebmContainer.prototype.getSectionById = function(id) {
+        for (var i = 0; i < this.data.length; i++) {
+            var section = this.data[i];
+            if (section.id === id) {
+                return section.data;
+            }
+        }
+        return null;
+    };
+
+    function WebmFile(source) {
+        WebmContainer.call(this, 'File', 'File');
+        this.setSource(source);
+    }
+    doInherit(WebmFile, WebmContainer);
+    WebmFile.prototype.fixDuration = function(duration, options) {
+        var logger = options && options.logger;
+        if (logger === undefined) {
+            logger = function(message) {
+                console.log(message);
+            };
+        } else if (!logger) {
+            logger = function() { };
+        }
+
+        var segmentSection = this.getSectionById(0x8538067);
+        if (!segmentSection) {
+            logger('[fix-webm-duration] Segment section is missing');
+            return false;
+        }
+
+        var infoSection = segmentSection.getSectionById(0x549a966);
+        if (!infoSection) {
+            logger('[fix-webm-duration] Info section is missing');
+            return false;
+        }
+
+        var timeScaleSection = infoSection.getSectionById(0xad7b1);
+        if (!timeScaleSection) {
+            logger('[fix-webm-duration] TimecodeScale section is missing');
+            return false;
+        }
+
+        var durationSection = infoSection.getSectionById(0x489);
+        if (durationSection) {
+            if (durationSection.getValue() <= 0) {
+                logger(`[fix-webm-duration] Duration section is present, but the value is ${durationSection.getValue()}`);
+                durationSection.setValue(duration);
+            } else {
+                logger(`[fix-webm-duration] Duration section is present, and the value is ${durationSection.getValue()}`);
+                return false;
+            }
+        } else {
+            logger('[fix-webm-duration] Duration section is missing');
+            // append Duration section
+            durationSection = new WebmFloat('Duration', 'Float');
+            durationSection.setValue(duration);
+            infoSection.data.push({
+                id: 0x489,
+                data: durationSection
+            });
+        }
+
+        // set default time scale to 1 millisecond (1000000 nanoseconds)
+        timeScaleSection.setValue(1000000);
+        infoSection.updateByData();
+        segmentSection.updateByData();
+        this.updateByData();
+
+        return true;
+    };
+    WebmFile.prototype.toBlob = function(mimeType) {
+        return new Blob([ this.source.buffer ], { type: mimeType || 'video/webm' });
+    };
+
+    function fixWebmDuration(blob, duration, callback, options) {
+        // The callback may be omitted - then the third argument is options
+        if (typeof callback === "object") {
+            options = callback;
+            callback = undefined;
+        }
+
+        if (!callback) {
+            return new Promise(function(resolve) {
+                fixWebmDuration(blob, duration, resolve, options);
+            });
+        }
+
+        try {
+            var reader = new FileReader();
+            reader.onloadend = function() {
+                try {
+                    var file = new WebmFile(new Uint8Array(reader.result));
+                    if (file.fixDuration(duration, options)) {
+                        blob = file.toBlob(blob.type);
+                    }
+                } catch (ex) {
+                    // ignore
+                }
+                callback(blob);
+            };
+            reader.readAsArrayBuffer(blob);
+        } catch (ex) {
+            callback(blob);
+        }
+    }
+
+    // Support AMD import default
+    fixWebmDuration.default = fixWebmDuration;
+
+    return fixWebmDuration;
+});
+
+</script>
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const IS_SAFARI = /^((?!chrome|chromium|crios|edg|android).)*safari/i.test(navigator.userAgent);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); };
+const fmtTime = (ms) => { const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600); const m = Math.floor(s % 3600 / 60); const ss = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : String(m).padStart(2, "0")) + ":" + String(ss).padStart(2, "0"); };
+const fmtMB = (b) => (b / 1048576).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " MB";
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* ---------- Google Drive: ajustes ---------- */
+// Permiso mínimo: la app solo ve los archivos y la carpeta que ella misma crea (drive.file).
+const old = store.get("toma.drive", null);
+let cfg = store.get("toma.drive2", { client: old?.client || "", folder: "", folderName: "", folderLink: "", wantName: "Toma Uno", public: old ? old.public !== false : true });
+const saveCfg = () => store.set("toma.drive2", cfg);
+const isWeb = /^https?:$/.test(location.protocol);
+const cloudReady = () => !!cfg.client;
+function paintCloud() {
+  $("cloudChip").classList.toggle("on", cloudReady());
+  $("cloudLabel").textContent = cloudReady() ? (cfg.folderName ? "Drive · " + cfg.folderName : "Google Drive conectado") : "Conectar Google Drive";
+  $("uploadBtn").textContent = cloudReady() ? "Guardar en Drive y copiar enlace" : "Conectar Google Drive para guardar";
+}
+function openSettings() {
+  $("cfgClient").value = cfg.client; $("cfgFolder").value = cfg.folderName || cfg.wantName || "Toma Uno";
+  $("folderLinkRow").hidden = !cfg.folderLink; $("folderLink").href = cfg.folderLink || "#";
+  $("cfgPublic").checked = cfg.public !== false;
+  $("originOut").value = isWeb ? location.origin : "(primero súbela a una web, por ejemplo Netlify)";
+  $("fileWarn").hidden = isWeb;
+  $("howto").open = !cfg.client;
+  $("folderStatus").textContent = cfg.folderName ? "Carpeta actual: «" + cfg.folderName + "»." : "";
+  $("settings").showModal();
+}
+$("cloudChip").onclick = openSettings;
+$("closeCfg").onclick = () => $("settings").close();
+$("copyOrigin").onclick = () => copyText($("originOut").value, "Dirección copiada", $("originOut"));
+$("settingsForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const client = $("cfgClient").value.trim();
+  const wantName = $("cfgFolder").value.trim().slice(0, 100) || "Toma Uno";
+  if (!/\.apps\.googleusercontent\.com$/.test(client)) { $("folderStatus").textContent = "El ID de cliente debe terminar en .apps.googleusercontent.com."; return; }
+  if (client !== cfg.client) { tokenClient = null; accessToken = null; cfg.folder = ""; }
+  cfg.client = client; cfg.public = $("cfgPublic").checked;
+  const rename = !!cfg.folder && wantName !== cfg.folderName;
+  cfg.wantName = wantName; saveCfg(); paintCloud();
+  $("folderStatus").textContent = "Conectando con Google Drive…";
+  try {
+    const f = await ensureFolder();
+    if (rename) {
+      const r = await driveFetch(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=id,name,webViewLink`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: wantName }) });
+      cfg.folderName = r.name; saveCfg(); paintCloud();
+    }
+    $("folderLinkRow").hidden = false; $("folderLink").href = cfg.folderLink;
+    $("folderStatus").textContent = "Listo. Los vídeos se guardarán en «" + cfg.folderName + "».";
+    toast("Google Drive conectado");
+  } catch (e) { $("folderStatus").textContent = driveErrorText(e); }
+});
+paintCloud();
+
+async function copyText(text, okMsg, fallbackInput) {
+  try { await navigator.clipboard.writeText(text); toast(okMsg || "Copiado"); }
+  catch { if (fallbackInput) { fallbackInput.focus(); fallbackInput.select(); } toast("Selecciona el texto y cópialo con Ctrl+C"); }
+}
+
+/* ---------- Dispositivos ---------- */
+async function fillDevices() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    for (const [sel, kind, label] of [[$("micSel"), "audioinput", "Micrófono"], [$("camSel"), "videoinput", "Cámara"]]) {
+      const cur = sel.value; const list = devs.filter(d => d.kind === kind && d.deviceId);
+      if (!list.some(d => d.label)) continue;
+      sel.innerHTML = "";
+      list.forEach((d, i) => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || `${label} ${i + 1}`; sel.append(o); });
+      if (cur && list.some(d => d.deviceId === cur)) sel.value = cur;
+    }
+  } catch {}
+}
+navigator.mediaDevices?.addEventListener?.("devicechange", fillDevices);
+
+/* ---------- Preferencias ---------- */
+const prefs = store.get("toma.prefs", {});
+["optScreen", "optMic", "optSys"].forEach(id => { if (typeof prefs[id] === "boolean") $(id).checked = prefs[id]; });
+if (prefs.quality) $("quality").value = prefs.quality;
+if (prefs.countdown != null) $("countdownSel").value = prefs.countdown;
+const savePrefs = () => store.set("toma.prefs", { optScreen: $("optScreen").checked, optMic: $("optMic").checked, optSys: $("optSys").checked, quality: $("quality").value, countdown: $("countdownSel").value });
+function paintSources() {
+  $("srcScreen").classList.toggle("off", !$("optScreen").checked);
+  $("srcMic").classList.toggle("off", !$("optMic").checked);
+  $("srcCam").classList.toggle("off", !$("optCam").checked);
+  $("srcSys").classList.toggle("off", !$("optSys").checked || !$("optScreen").checked);
+  $("optSys").disabled = !$("optScreen").checked;
+}
+["optScreen", "optMic", "optSys", "quality", "countdownSel"].forEach(id => $(id).addEventListener("change", () => { paintSources(); savePrefs(); }));
+paintSources();
+
+/* ---------- Cámara y burbuja flotante ---------- */
+let camStream = null, pipWin = null;
+const camVideo = $("camVideo");
+
+async function startCamera() {
+  const id = $("camSel").value;
+  camStream = await navigator.mediaDevices.getUserMedia({ video: id ? { deviceId: { exact: id }, width: 640, height: 640 } : { width: 640, height: 640, facingMode: "user" }, audio: false });
+  camVideo.srcObject = camStream;
+  $("camWrap").hidden = false;
+  fillDevices();
+}
+function stopCamera() {
+  camStream?.getTracks().forEach(t => t.stop()); camStream = null; camVideo.srcObject = null;
+  $("camWrap").hidden = true; $("pipFallback").hidden = true;
+  if (pipWin) { pipWin.close(); pipWin = null; }
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+}
+async function openBubble() {
+  // Tiene que llamarse directamente desde un clic
+  if (!("documentPictureInPicture" in window)) return false;
+  try {
+    pipWin = await documentPictureInPicture.requestWindow({ width: 240, height: 240 });
+  } catch { pipWin = null; return false; }
+  const d = pipWin.document;
+  const st = d.createElement("style");
+  st.textContent = `html,body{margin:0;height:100%;background:#0c0e14;overflow:hidden;font-family:system-ui,sans-serif}
+    .b{position:absolute;inset:0;display:grid;place-items:center}
+    video{width:min(100vw,100vh);height:min(100vw,100vh);border-radius:50%;object-fit:cover;transform:scaleX(-1)}
+    .c{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:rgba(12,14,20,.78);color:#fff;border-radius:999px;padding:4px 6px 4px 10px;font:600 12px ui-monospace,Menlo,monospace}
+    .c[hidden]{display:none}
+    .c i{width:8px;height:8px;border-radius:50%;background:#ff4a3d}
+    .c button{border:0;border-radius:999px;padding:4px 9px;font:600 11px system-ui,sans-serif;cursor:pointer;background:#ff4a3d;color:#fff}
+    .c button.p{background:#ffffff26}`;
+  d.head.append(st);
+  d.body.innerHTML = `<div class="b"><video autoplay muted playsinline></video></div><div class="c" hidden><i></i><span class="t">00:00</span><button class="p" type="button">Pausa</button><button class="s" type="button">Terminar</button></div>`;
+  const v = d.querySelector("video");
+  const attach = () => { if (camStream) { v.srcObject = camStream; v.play().catch(() => {}); } };
+  attach(); pipWin._attach = attach;
+  d.querySelector(".s").onclick = () => stopRecording();
+  d.querySelector(".p").onclick = () => togglePause();
+  pipWin.addEventListener("pagehide", () => { pipWin = null; $("bubbleNote").textContent = "Has cerrado la burbuja. Desmarca y vuelve a marcar «Cámara» para abrirla otra vez."; });
+  return true;
+}
+function bubbleUpdate(text, paused, recording) {
+  if (!pipWin) return;
+  const c = pipWin.document.querySelector(".c"); if (!c) return;
+  c.hidden = !recording; c.querySelector(".t").textContent = text; c.querySelector(".p").textContent = paused ? "Seguir" : "Pausa";
+}
+
+$("optCam").addEventListener("change", async () => {
+  paintSources();
+  if (!$("optCam").checked) { stopCamera(); return; }
+  $("startErr").textContent = "";
+  const bubble = openBubble(); // abrir en el mismo clic, antes de pedir permisos
+  try {
+    await startCamera();
+    const ok = await bubble;
+    if (ok) { pipWin?._attach?.(); $("bubbleNote").textContent = "La burbuja de cámara está flotando encima de todo. Muévela o cambia su tamaño. Para que salga en el vídeo, comparte la pantalla completa."; }
+    else { $("pipFallback").hidden = !document.pictureInPictureEnabled; $("bubbleNote").textContent = "Vista previa de la cámara."; }
+  } catch (e) {
+    $("optCam").checked = false; paintSources(); stopCamera();
+    $("startErr").textContent = permMsg(e, "la cámara");
+  }
+});
+$("camSel").addEventListener("change", async () => { if (!$("optCam").checked) return; camStream?.getTracks().forEach(t => t.stop()); try { await startCamera(); pipWin?._attach?.(); } catch (e) { $("startErr").textContent = permMsg(e, "la cámara"); } });
+$("pipBtn").onclick = async () => { try { await camVideo.requestPictureInPicture(); } catch { toast("No se pudo abrir la ventana flotante"); } };
+
+function permMsg(e, what) {
+  if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) return `No hay permiso para usar ${what}. Permítelo en el icono del candado de la barra de direcciones.`;
+  if (e && e.name === "NotFoundError") return `No se ha encontrado ${what}.`;
+  if (e && e.name === "NotReadableError") return `Otra aplicación está usando ${what}. Ciérrala e inténtalo de nuevo.`;
+  return `No se pudo usar ${what}${e && e.message ? ": " + e.message : "."}`;
+}
+
+/* ---------- Grabación ---------- */
+let rec = null, chunks = [], bytes = 0, mime = "", streams = [], audioCtx = null;
+let startedAt = 0, pausedTotal = 0, pausedAt = 0, tick = null, discarded = false;
+let result = null; // {blob, ext, durationMs}
+
+let watchdog = null, lastError = "";
+function paintDiag() {
+  const mr = window.MediaRecorder ? ["video/webm;codecs=vp9", "video/webm", "video/mp4"].filter(m => MediaRecorder.isTypeSupported(m)).join(",") : "no";
+  $("diag").textContent = [navigator.userAgent.replace(/^Mozilla\/5\.0 /, ""), "seguro=" + window.isSecureContext, "marco=" + (window.top !== window),
+    "pantalla=" + !!navigator.mediaDevices?.getDisplayMedia, "rec=" + mr, "origen=" + location.protocol, lastError && ("error=" + lastError)].filter(Boolean).join(" · ");
+}
+function checkEnv() {
+  let framed = false; try { framed = window.top !== window; } catch { framed = true; }
+  const noScreen = !navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder;
+  let title = "", text = "";
+  if (framed) { title = "Aquí no se puede grabar"; text = "Estás viendo la app dentro de otra página (por ejemplo, la vista previa de Claude), que bloquea la pantalla, la cámara y el micrófono. Ábrela directamente en Google Chrome: desde el archivo, desde la app instalada o desde su dirección web."; }
+  else if (!window.isSecureContext) { title = "Esta dirección no permite grabar"; text = "Chrome solo deja grabar en direcciones https://, en http://localhost o al abrir el archivo directamente."; }
+  else if (noScreen) { title = "Este navegador no puede grabar la pantalla"; text = "Abre la app en Google Chrome o Microsoft Edge en un ordenador."; }
+  else if (IS_SAFARI) { title = "Mejor en Google Chrome"; text = "Safari graba la pantalla con limitaciones (sin burbuja de cámara ni sonido del ordenador). Para que todo funcione, abre la app en Chrome."; }
+  if (title) { $("envTitle").textContent = title; $("envText").textContent = text; $("envBanner").hidden = false; }
+  if (framed || noScreen || !window.isSecureContext) $("help").open = true;
+  paintDiag();
+}
+function pickMime() {
+  // Chrome/Edge: WebM (VP9/VP8), el formato más fiable. Safari: MP4.
+  const webm = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  const mp4 = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4"];
+  const opts = IS_SAFARI ? [...mp4, ...webm] : [...webm, ...mp4];
+  return opts.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+const elapsed = () => !startedAt ? 0 : ((pausedAt || Date.now()) - startedAt - pausedTotal);
+
+$("startBtn").onclick = async () => {
+  $("startErr").textContent = "";
+  const wantScreen = $("optScreen").checked, wantMic = $("optMic").checked, wantCam = $("optCam").checked, wantSys = $("optSys").checked && wantScreen;
+  if (!wantScreen && !wantCam) { $("startErr").textContent = "Marca «Pantalla» o «Cámara» para grabar algo."; return; }
+  if (!window.MediaRecorder || !navigator.mediaDevices) { $("startErr").textContent = "Este navegador no puede grabar. Usa Chrome o Edge en un ordenador."; return; }
+  if (wantScreen && !navigator.mediaDevices.getDisplayMedia) { $("startErr").textContent = "Este navegador no permite grabar la pantalla. Usa Chrome o Edge en un ordenador."; return; }
+  $("startBtn").disabled = true;
+  streams = [];
+  try {
+    let videoTrack, displayAudio = null;
+    if (wantScreen) {
+      const ds = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30, max: 30 }, width: { max: 1920 }, height: { max: 1080 } },
+        audio: wantSys, selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: wantSys ? "include" : "exclude"
+      });
+      streams.push(ds);
+      videoTrack = ds.getVideoTracks()[0];
+      displayAudio = ds.getAudioTracks()[0] || null;
+      videoTrack.addEventListener("ended", () => { if (rec && rec.state !== "inactive") stopRecording(); });
+    } else {
+      if (!camStream) await startCamera();
+      videoTrack = camStream.getVideoTracks()[0].clone();
+      streams.push(new MediaStream([videoTrack]));
+    }
+    let micTrack = null;
+    if (wantMic) {
+      try {
+        const id = $("micSel").value;
+        const ms = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: id ? { exact: id } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        streams.push(ms); micTrack = ms.getAudioTracks()[0]; fillDevices();
+      } catch (e) { toast("Grabando sin micrófono: " + permMsg(e, "el micrófono")); }
+    }
+    // Mezclar audios en una sola pista
+    const tracks = [videoTrack];
+    const audioSrcs = [micTrack, displayAudio].filter(Boolean);
+    if (audioSrcs.length === 1) tracks.push(audioSrcs[0]);
+    else if (audioSrcs.length > 1) {
+      audioCtx = new AudioContext();
+      audioCtx.resume().catch(() => {});
+      const dest = audioCtx.createMediaStreamDestination();
+      audioSrcs.forEach(t => audioCtx.createMediaStreamSource(new MediaStream([t])).connect(dest));
+      tracks.push(dest.stream.getAudioTracks()[0]);
+    }
+    const mixed = new MediaStream(tracks);
+
+    const n = +$("countdownSel").value;
+    if (n > 0) { $("countdown").hidden = false; for (let i = n; i > 0; i--) { $("cdNum").textContent = i; await sleep(1000); } $("countdown").hidden = true; }
+
+    mime = pickMime();
+    try { rec = new MediaRecorder(mixed, { mimeType: mime || undefined, videoBitsPerSecond: +$("quality").value, audioBitsPerSecond: 96000 }); }
+    catch { rec = new MediaRecorder(mixed); }
+    mime = rec.mimeType || mime || "video/webm";
+    chunks = []; bytes = 0; discarded = false; pausedTotal = 0; pausedAt = 0;
+    rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) { chunks.push(ev.data); bytes += ev.data.size; paintLive(); } };
+    rec.onstop = onStopped;
+    rec.onerror = (ev) => {
+      lastError = "MediaRecorder: " + (ev.error && (ev.error.name + " " + ev.error.message) || "error");
+      $("liveErr").hidden = false;
+      $("liveErr").textContent = "El navegador ha dejado de grabar (" + lastError + "). Guardo lo que se haya grabado hasta ahora.";
+      paintDiag();
+    };
+    rec.start(1000);
+    startedAt = Date.now();
+    $("liveErr").hidden = true;
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      if (rec && rec.state === "recording" && chunks.length === 0) {
+        lastError = "sin datos tras 5 s";
+        $("liveErr").hidden = false;
+        $("liveErr").textContent = "No está llegando vídeo. Lo más probable es que el Mac no deje grabar a Chrome: Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla → activa Google Chrome y reinícialo.";
+        paintDiag();
+      }
+    }, 5000);
+    showPanel("live"); $("liveBox").classList.remove("paused"); $("pauseBtn").textContent = "Pausar";
+    tick = setInterval(paintLive, 500); paintLive();
+  } catch (e) {
+    cleanupStreams();
+    $("countdown").hidden = true;
+    lastError = (e && (e.name + ": " + e.message)) || String(e); paintDiag(); $("help").open = true;
+    $("startErr").textContent = (e && e.name === "NotAllowedError") ? "Has cancelado la selección de pantalla, o el navegador no tiene permiso para grabarla." : permMsg(e, "la pantalla");
+  } finally { $("startBtn").disabled = false; }
+};
+
+function paintLive() {
+  const ms = elapsed(); const t = fmtTime(ms);
+  $("timer").textContent = t;
+  $("sizeLabel").textContent = fmtMB(bytes) + " grabados";
+  bubbleUpdate(t, rec && rec.state === "paused", !!rec && rec.state !== "inactive");
+}
+function togglePause() {
+  if (!rec || rec.state === "inactive") return;
+  if (rec.state === "recording") { rec.pause(); pausedAt = Date.now(); $("pauseBtn").textContent = "Seguir"; $("liveBox").classList.add("paused"); }
+  else { rec.resume(); pausedTotal += Date.now() - pausedAt; pausedAt = 0; $("pauseBtn").textContent = "Pausar"; $("liveBox").classList.remove("paused"); }
+  paintLive();
+}
+function stopRecording() { if (rec && rec.state !== "inactive") { if (pausedAt) { pausedTotal += Date.now() - pausedAt; pausedAt = 0; } rec.stop(); } }
+$("pauseBtn").onclick = togglePause;
+$("stopBtn").onclick = stopRecording;
+$("cancelBtn").onclick = () => { discarded = true; stopRecording(); };
+
+function cleanupStreams() {
+  streams.forEach(s => s.getTracks().forEach(t => t.stop())); streams = [];
+  if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
+}
+async function onStopped() {
+  clearInterval(tick); tick = null; clearTimeout(watchdog);
+  const durationMs = elapsed(); startedAt = 0;
+  cleanupStreams(); bubbleUpdate("", false, false);
+  if (!discarded && !chunks.length) {
+    rec = null; showPanel("setup"); $("help").open = true;
+    $("startErr").textContent = "La grabación ha salido vacía: el navegador no ha entregado vídeo. Revisa los pasos de «¿No graba?».";
+    paintDiag(); return;
+  }
+  if (discarded) { chunks = []; rec = null; showPanel("setup"); toast("Grabación descartada"); return; }
+  const ext = mime.includes("mp4") ? "mp4" : "webm";
+  let blob = new Blob(chunks, { type: mime.split(";")[0] });
+  if (ext === "webm" && window.ysFixWebmDuration) { try { blob = await ysFixWebmDuration(blob, durationMs, { logger: false }); } catch {} }
+  chunks = []; rec = null;
+  result = { blob, ext, durationMs, uploaded: null };
+  const v = $("resultVideo"); if (v.src) URL.revokeObjectURL(v.src); v.src = URL.createObjectURL(blob);
+  $("titleIn").value = defaultTitle();
+  $("linkBox").hidden = true; $("upMeter").hidden = true; $("upErr").textContent = ""; $("uploadBtn").disabled = false;
+  showPanel("done");
+}
+function defaultTitle() {
+  const d = new Date();
+  return "Grabación del " + d.toLocaleDateString("es-ES", { day: "numeric", month: "long" }) + " a las " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+function showPanel(which) {
+  $("setupPanel").hidden = which !== "setup"; $("livePanel").hidden = which !== "live"; $("donePanel").hidden = which !== "done";
+}
+
+/* ---------- Descargar ---------- */
+const slug = (s) => (s || "grabacion").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "grabacion";
+$("downloadBtn").onclick = () => {
+  if (!result) return;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(result.blob); a.download = slug($("titleIn").value) + "." + result.ext;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+};
+$("newBtn").onclick = () => { showPanel("setup"); };
+
+/* ---------- Google Drive: sesión y subida ---------- */
+let tokenClient = null, accessToken = null, tokenExp = 0;
+const SCOPE = "https://www.googleapis.com/auth/drive.file";
+function gisReady() {
+  return new Promise((res, rej) => {
+    if (window.google?.accounts?.oauth2) return res();
+    let n = 0; const iv = setInterval(() => { if (window.google?.accounts?.oauth2) { clearInterval(iv); res(); } else if (++n > 50) { clearInterval(iv); rej({ msg: "No se pudo cargar el inicio de sesión de Google. Revisa tu conexión." }); } }, 100);
+  });
+}
+async function getToken() {
+  if (accessToken && Date.now() < tokenExp - 60000) return accessToken;
+  if (!isWeb) throw { msg: "Para guardar en Drive, abre la app con el lanzador «Abrir Toma Uno» o desde tu dirección de GitHub Pages. Mientras tanto, puedes descargar el vídeo." };
+  await gisReady();
+  return new Promise((resolve, reject) => {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.client, scope: SCOPE, include_granted_scopes: false, prompt: accessToken ? "" : undefined,
+      callback: (r) => {
+        if (r.error) return reject({ msg: r.error === "access_denied" ? "Has cancelado el acceso a Google Drive." : "Google ha rechazado el inicio de sesión (" + r.error + ")." });
+        accessToken = r.access_token; tokenExp = Date.now() + (+r.expires_in || 3600) * 1000; resolve(accessToken);
+      },
+      error_callback: (e) => reject({ msg: e && e.type === "popup_closed" ? "Has cerrado la ventana de Google antes de terminar." : e && e.type === "popup_failed_to_open" ? "El navegador ha bloqueado la ventana de Google. Permite ventanas emergentes para esta página." : "No se pudo iniciar sesión en Google." })
+    });
+    tokenClient.requestAccessToken();
+  });
+}
+async function driveFetch(url, opts = {}) {
+  const tok = await getToken();
+  const r = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: "Bearer " + tok } });
+  if (r.status === 401) { accessToken = null; }
+  if (!r.ok) { let msg = ""; try { const j = await r.json(); msg = j.error?.message || ""; } catch {} throw { status: r.status, msg }; }
+  return r.status === 204 ? null : r.json();
+}
+function driveErrorText(e) {
+  const m = (e.msg || "").toLowerCase();
+  if (e.status === 404) return "No encuentro la carpeta de la app en tu Drive. Vuelve a pulsar «Guardar y comprobar» para crearla de nuevo.";
+  if (e.status === 403 && (m.includes("has not been used") || m.includes("disabled"))) return "La Google Drive API no está habilitada en tu proyecto de Google Cloud (paso 2).";
+  if (e.status === 403 && m.includes("storage quota")) return "Tu Google Drive está lleno.";
+  if (e.status === 403) return "Google no permite esta acción" + (e.msg ? ": " + e.msg : ".");
+  if (e.status === 401) return "La sesión de Google ha caducado. Inténtalo de nuevo.";
+  if (e.status === 0) return "No se pudo conectar con Google Drive. Revisa tu conexión.";
+  return e.msg || "Algo ha fallado al hablar con Google Drive.";
+}
+const FOLDER_TAG = "appProperties has { key='tomaUno' and value='carpeta' }";
+async function ensureFolder() {
+  const F = "id,name,webViewLink,trashed";
+  if (cfg.folder) {
+    try {
+      const f = await driveFetch(`https://www.googleapis.com/drive/v3/files/${cfg.folder}?fields=${F}`);
+      if (!f.trashed) { cfg.folderName = f.name; cfg.folderLink = f.webViewLink; saveCfg(); paintCloud(); return f; }
+    } catch (e) { if (e.status !== 404) throw e; }
+  }
+  const q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and trashed=false and ${FOLDER_TAG}`);
+  const list = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(${F})&orderBy=createdTime&pageSize=1`);
+  let f = list.files && list.files[0];
+  if (!f) {
+    f = await driveFetch(`https://www.googleapis.com/drive/v3/files?fields=${F}`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: cfg.wantName || "Toma Uno", mimeType: "application/vnd.google-apps.folder", appProperties: { tomaUno: "carpeta" }, description: "Vídeos grabados con Toma Uno" }) });
+  }
+  cfg.folder = f.id; cfg.folderName = f.name; cfg.folderLink = f.webViewLink; saveCfg(); paintCloud();
+  return f;
+}
+function uploadToDrive(name, blob, onProgress) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await ensureFolder();
+      const tok = await getToken();
+      const init = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": blob.type, "X-Upload-Content-Length": String(blob.size) },
+        body: JSON.stringify({ name, parents: [cfg.folder], mimeType: blob.type, description: "Grabado con Toma Uno" })
+      });
+      if (!init.ok) { let msg = ""; try { msg = (await init.json()).error?.message || ""; } catch {} return reject({ status: init.status, msg }); }
+      const session = init.headers.get("Location");
+      if (!session) return reject({ msg: "Google Drive no ha devuelto la dirección de subida." });
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", session);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) { try { return resolve(JSON.parse(xhr.responseText)); } catch { return reject({ msg: "Respuesta inesperada de Google Drive." }); } }
+        let msg = ""; try { msg = JSON.parse(xhr.responseText).error?.message || ""; } catch {}
+        reject({ status: xhr.status, msg });
+      };
+      xhr.onerror = () => reject({ status: 0, msg: "" });
+      xhr.send(blob);
+    } catch (e) { reject(e); }
+  });
+}
+$("uploadBtn").onclick = async () => {
+  if (!result) return;
+  if (!cloudReady()) { openSettings(); return; }
+  const title = $("titleIn").value.trim() || defaultTitle();
+  if (result.uploaded) { showLink(result.uploaded.share); copyText(result.uploaded.share, "Enlace copiado", $("linkOut")); return; }
+  $("uploadBtn").disabled = true; $("upErr").textContent = ""; $("upMeter").hidden = false; $("upBar").style.width = "0%";
+  $("upLabel").textContent = "Conectando con Google Drive…";
+  try {
+    const file = await uploadToDrive(title.replace(/[\\/:*?"<>|]+/g, "-") + "." + result.ext, result.blob, (p) => {
+      $("upBar").style.width = (p * 100).toFixed(0) + "%"; $("upLabel").textContent = `Subiendo a Drive… ${(p * 100).toFixed(0)} % de ${fmtMB(result.blob.size)}`;
+    });
+    let note = "";
+    if (cfg.public !== false) {
+      try { await driveFetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: "reader", type: "anyone" }) }); }
+      catch { note = " Solo podrán verlo quienes tengan acceso a la carpeta: tu organización no permite compartir con cualquiera."; }
+    }
+    const share = file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`;
+    result.uploaded = { share };
+    $("upLabel").textContent = "Guardado en «" + (cfg.folderName || "tu carpeta") + "». Drive tarda unos minutos en preparar la reproducción." + note;
+    addToLibrary({ title, share, date: Date.now(), dur: result.durationMs, size: result.blob.size });
+    showLink(share);
+    await copyText(share, "Enlace copiado", $("linkOut"));
+  } catch (e) {
+    $("upMeter").hidden = true; $("upErr").textContent = driveErrorText(e);
+  } finally { $("uploadBtn").disabled = false; }
+};
+function showLink(share) { $("linkBox").hidden = false; $("linkOut").value = share; $("openLink").href = share; }
+$("copyBtn").onclick = () => copyText($("linkOut").value, "Enlace copiado", $("linkOut"));
+
+/* ---------- Biblioteca ---------- */
+let lib = store.get("toma.lib", []);
+function addToLibrary(item) { lib.unshift(item); lib = lib.slice(0, 200); store.set("toma.lib", lib); paintLib(); }
+function paintLib() {
+  const el = $("lib"); el.innerHTML = "";
+  if (!lib.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "Aún no has guardado ningún vídeo en Drive. Cuando subas el primero, aparecerá aquí con su enlace."; el.append(p); return; }
+  lib.forEach((it, i) => {
+    const row = document.createElement("div"); row.className = "item";
+    const t = document.createElement("strong"); t.textContent = it.title;
+    const acts = document.createElement("div"); acts.className = "acts";
+    const c = document.createElement("button"); c.type = "button"; c.className = "btn"; c.textContent = "Copiar enlace"; c.onclick = () => copyText(it.share, "Enlace copiado");
+    const o = document.createElement("a"); o.className = "btn"; o.textContent = "Ver"; o.href = it.share; o.target = "_blank"; o.rel = "noopener";
+    const x = document.createElement("button"); x.type = "button"; x.className = "btn ghost"; x.textContent = "Quitar"; x.title = "Quitar de esta lista (el vídeo sigue en tu Drive)";
+    x.onclick = () => { lib.splice(i, 1); store.set("toma.lib", lib); paintLib(); toast("Quitado de la lista. El vídeo sigue en tu Drive."); };
+    acts.append(c, o, x);
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.textContent = new Date(it.date).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " · " + fmtTime(it.dur || 0) + " · " + fmtMB(it.size || 0);
+    row.append(t, acts, meta); el.append(row);
+  });
+}
+paintLib();
+
+checkEnv();
+if ("serviceWorker" in navigator && isWeb) navigator.serviceWorker.register("sw.js").catch(() => {});
+window.addEventListener("beforeunload", (e) => { if (rec && rec.state !== "inactive") { e.preventDefault(); e.returnValue = ""; } });
+})();
+</script>
+</body>
+</html>
